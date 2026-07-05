@@ -1,13 +1,23 @@
 module Main (main) where
 
 import System.FilePath ((</>))
-import CGenerate
+import HCompile
 
 main :: IO ()
 main = do
     let gen = do
-            cGenInit
-            genDefine "hello" (10 :: Int) False
-            genDefine "hello1" "hello\\nhello" False
+            hCompileBegin "// ------------- TITLE -------------\n\n"
 
-    runCGen gen $ "test" </> "file.h"
+            send2File "// COMMENT :)\n"
+
+            genDefine    "HELLO" (((10 + 10) * 5) :: Int)
+            genDefine    "HELLO1" "hello\\nhello"
+            genDefineRaw "HELLO2" "HELLO"
+
+            send2File "\n"
+
+            genDefineMacro "MACRO(a, b) " "((a) + (b))"
+
+            hCompileEnd
+
+    runCGen gen $ "test" </> "file.h"   

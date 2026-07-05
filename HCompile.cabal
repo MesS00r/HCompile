@@ -13,7 +13,7 @@ executable HCompile
     import:           warnings
 
     main-is:          Main.hs
-    other-modules:    CGenerate
+    other-modules:    HCompile
 
     build-depends:    base ^>=4.20.2.0,
                       mtl,
