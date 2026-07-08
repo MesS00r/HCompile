@@ -9,14 +9,16 @@ module HCompile (
     genDefine,
     genDefineRaw,
     genDefineMacro,
+    genCType,
     hCompileEnd,
-    runCGen
+    runHCompile
 ) where
 
 import Control.Monad.Reader
-import System.Directory (removeFile, doesFileExist)
-import Control.Monad (when)
-import Data.Char (toUpper, isAlphaNum)
+import System.Directory     (removeFile, doesFileExist)
+import Data.Char            (toUpper, isAlphaNum)
+import Data.List            (intercalate)
+import Control.Monad        (when)
 
 type HCompile h = ReaderT FilePath IO h
 
@@ -92,11 +94,26 @@ genDefineMacro name body = do
     liftIO $ appendFile fileName $
         "#define " ++ name ++ body ++ "\n"
 
+myChunksOf :: Int -> [a] -> [[a]]
+myChunksOf _ [] = []
+myChunksOf n xs = take n xs : myChunksOf n (drop n xs)
+
+genCType :: Val2String v => String -> [v] -> String -> Int -> HCompile ()
+genCType name fields sep lineLen = do
+    fileName <- ask
+    liftIO $ appendFile fileName $
+        name ++ "{\n\t" ++ 
+            intercalate (sep ++ "\n\t") 
+            (map (intercalate sep) 
+            (myChunksOf lineLen 
+            (map toRaw fields)))
+        ++ "\n};\n"
+
 hCompileEnd :: HCompile ()
 hCompileEnd = do
     fileName <- ask
     liftIO $ appendFile fileName $
         "\n#endif // " ++ map cleanName fileName
 
-runCGen :: HCompile h -> FilePath -> IO h
-runCGen = runReaderT
+runHCompile :: HCompile h -> FilePath -> IO h
+runHCompile = runReaderT

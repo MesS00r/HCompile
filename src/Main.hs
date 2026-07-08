@@ -18,6 +18,10 @@ main = do
 
             genDefineMacro "MACRO(a, b) " "((a) + (b))"
 
+            send2File "\n"
+
+            genCType "static int name[] = " [1 :: Int, 2, 3, 4, 5] ", " 2
+
             hCompileEnd
 
-    runCGen gen $ "test" </> "file.h"   
+    runHCompile gen $ "test" </> "file.h"   
