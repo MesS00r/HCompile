@@ -4,24 +4,25 @@ import System.FilePath ((</>))
 import HCompile
 
 main :: IO ()
-main = do
-    let gen = do
-            hCompileBegin "// ------------- TITLE -------------\n\n"
+main =
+    runHCompile (do
+        hCompileBegin "// ------------- TITLE -------------\n\n"
 
-            send2File "// COMMENT :)\n"
+        send2File "// COMMENT :)\n"
 
-            genDefine    "HELLO" (((10 + 10) * 5) :: Int)
-            genDefine    "HELLO1" "hello\\nhello"
-            genDefineRaw "HELLO2" "HELLO"
+        genDefine    "HELLO" (((10 + 10) * 5) :: Int)
+        genDefine    "HELLO1" "hello\\nhello"
+        genDefineRaw "HELLO2" "HELLO"
 
-            send2File "\n"
+        send2File "\n"
 
-            genDefineMacro "MACRO(a, b) " "((a) + (b))"
+        genDefineMacro "MACRO(a, b) " "((a) + (b))"
 
-            send2File "\n"
+        send2File "\n"
 
-            genCType "static int name[] = " [1 :: Int, 2, 3, 4, 5] ", " 2
+        genCType         "static uint8_t name[] = " [1 :: Int, 2, 3, 4, 5] ", " 2
+        genTableExp      "static int16_t name2" (\f -> f - 2) (256 :: Int) 16
+        genTableExpFloat "static float name3" (\f -> sin f) (0 :: Float, 256) 0.1 16
 
-            hCompileEnd
-
-    runHCompile gen $ "test" </> "file.h"   
+        hCompileEnd
+    ) $ "test" </> "file.h"
