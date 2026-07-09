@@ -18,7 +18,10 @@ executable HCompile
     build-depends:    base ^>=4.20.2.0,
                       mtl,
                       directory,
-                      filepath
+                      filepath,
+                      JuicyPixels,
+                      bytestring,
+                      vector
 
     hs-source-dirs:   src
 

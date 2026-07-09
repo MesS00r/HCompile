@@ -2,19 +2,20 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module HCompile (
+    HCompileConf(..),
     HCompile,
     Val2String(..),
     hCompileBegin,
     send2File,
     genDefine,
     genDefineRaw,
-    genDefineMacro,
-    genCType,
-    genCTypeRaw,
-    genTableExp,
-    genTableExpRaw,
-    genTableExpFloat,
-    genTableExpFloatRaw,
+    genMacro,
+    genType,
+    genTypeRaw,
+    genTableFoo,
+    genTableFooRaw,
+    genTableFooFloat,
+    genTableFooFloatRaw,
     hCompileEnd,
     runHCompile
 ) where
@@ -25,7 +26,16 @@ import Data.Char            (toUpper, isAlphaNum)
 import Data.List            (intercalate)
 import Control.Monad        (when)
 
-type HCompile h = ReaderT FilePath IO h
+-- import Codec.Picture
+-- import Codec.Picture.Types
+-- import qualified Data.ByteString as B
+-- import qualified Data.Vector.Storable as V
+
+data HCompileConf = HCompileConf {
+    defineWidth :: Int,
+    filePath    :: FilePath
+    }
+type HCompile h = ReaderT HCompileConf IO h
 
 _cleanName :: Char -> Char
 _cleanName ch
@@ -34,7 +44,7 @@ _cleanName ch
 
 hCompileBegin :: String -> HCompile ()
 hCompileBegin includes = do
-    fileName <- ask
+    fileName <- asks filePath
 
     liftIO $ doesFileExist fileName >>=
         flip when (removeFile fileName)
@@ -46,7 +56,7 @@ hCompileBegin includes = do
 
 send2File :: String -> HCompile ()
 send2File str = do
-    fileName <- ask
+    fileName <- asks filePath
     liftIO $ appendFile fileName str
 
 data IsRaw = Raw | NotRaw
@@ -84,9 +94,10 @@ _padName name spaces
 
 _genDefine :: Val2String v => IsRaw -> String -> v -> HCompile ()
 _genDefine isRaw name val = do
-    fileName <- ask
+    fileName <- asks filePath
+    dWidth   <- asks defineWidth
     liftIO $ appendFile fileName $
-        "#define " ++ _padName name 15 ++ " " ++
+        "#define " ++ _padName name dWidth ++ " " ++
         _rawOrNot isRaw val ++ "\n"
 
 genDefine :: Val2String v => String -> v -> HCompile ()
@@ -95,11 +106,11 @@ genDefine    = _genDefine NotRaw
 genDefineRaw :: Val2String v => String -> v -> HCompile ()
 genDefineRaw = _genDefine Raw
 
-genDefineMacro :: String -> String -> HCompile ()
-genDefineMacro name body = do
-    fileName <- ask
+genMacro :: String -> String -> HCompile ()
+genMacro name body = do
+    fileName <- asks filePath
     liftIO $ appendFile fileName $
-        "#define " ++ name ++ body ++ "\n"
+        "#define " ++ name ++ " " ++ body ++ "\n"
 
 _myChunksOf :: Int -> [a] -> [[a]]
 _myChunksOf _ [] = []
@@ -114,36 +125,35 @@ _padList isRaw list
         maxLen  = maximum (map length listStr)
         pad str = str ++ replicate (maxLen - length str) ' '
 
-_genCType :: Val2String v => IsRaw -> String -> [v] -> String -> Int -> HCompile ()
-_genCType isRaw name fields sep lineLen = do
-    fileName <- ask
+_genType :: Val2String v => IsRaw -> String -> [v] -> String -> (String, String) -> Int -> HCompile ()
+_genType isRaw name fields sep (startStr, endStr) lineLen = do
+    fileName <- asks filePath
     liftIO $ appendFile fileName $
-        name ++ "{\n\t" ++ 
+        name ++ startStr ++ 
             intercalate (sep ++ "\n\t")
             (map (intercalate sep)
             (_myChunksOf lineLen
             (_padList isRaw fields)))
-        ++ "\n};\n"
+        ++ endStr
 
-genCType :: Val2String v => String -> [v] -> String -> Int -> HCompile ()
-genCType    = _genCType NotRaw
+genType :: Val2String v => String -> [v] -> String -> (String, String) -> Int -> HCompile ()
+genType    = _genType NotRaw
 
-genCTypeRaw :: Val2String v => String -> [v] -> String -> Int -> HCompile ()
-genCTypeRaw = _genCType Raw
+genTypeRaw :: Val2String v => String -> [v] -> String -> (String, String) -> Int -> HCompile ()
+genTypeRaw = _genType Raw
 
-_genCTypeRawOrNot :: Val2String v => IsRaw -> (String -> [v] -> String -> Int -> HCompile ())
-_genCTypeRawOrNot NotRaw = genCType
-_genCTypeRawOrNot Raw    = genCTypeRaw
+_genTableFoo :: (Val2String v, Enum a, Num a) => 
+                IsRaw -> String -> (a -> v) -> a -> String -> (String, String) -> Int -> HCompile ()
+_genTableFoo isRaw name foo size sep limits lineLen =
+    _genType isRaw name (map foo [0..size]) sep limits lineLen
 
-_genTableExp :: (Val2String v, Enum a, Num a) => IsRaw -> String -> (a -> v) -> a -> Int -> HCompile ()
-_genTableExp isRaw name foo size lineLen =
-    _genCTypeRawOrNot isRaw (name ++ "[] = ") (map foo [0..size]) ", " lineLen
+genTableFoo :: (Val2String v, Enum a, Num a) => 
+               String -> (a -> v) -> a -> String -> (String, String) -> Int -> HCompile ()
+genTableFoo    = _genTableFoo NotRaw
 
-genTableExp :: (Val2String v, Enum a, Num a) => String -> (a -> v) -> a -> Int -> HCompile ()
-genTableExp    = _genTableExp NotRaw
-
-genTableExpRaw :: (Val2String v, Enum a, Num a) => String -> (a -> v) -> a -> Int -> HCompile ()
-genTableExpRaw = _genTableExp Raw
+genTableFooRaw :: (Val2String v, Enum a, Num a) =>
+                  String -> (a -> v) -> a -> String -> (String, String) -> Int -> HCompile ()
+genTableFooRaw = _genTableFoo Raw
 
 class CheckFloat f where
     _infOrNan :: f -> f
@@ -161,33 +171,35 @@ instance CheckFloat String where
         | str == "-Infinity" = error "expression returned Infinite"
         | otherwise          = str
 
-_genTableExpFloat :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, Eq a, RealFloat a) =>
-                    IsRaw -> String -> (a -> v) -> (a, a) -> a -> Int -> HCompile ()
-_genTableExpFloat isRaw name foo (start, end) step lineLen 
+_genTableFooFloat :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, Eq a, RealFloat a) =>
+                     IsRaw -> String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
+_genTableFooFloat isRaw name foo (start, end) step sep limits lineLen 
     | isInfinite step = error "Step should not be Infinity"
     | isNaN step      = error "Step should not be NaN"
     | step == 0       = error "Step must be non-zero"
     | otherwise       =
-                        _genCTypeRawOrNot isRaw (name ++ "[] = ")
-                        (map _infOrNan (map foo [start, start + step .. end])) 
-                        ", " lineLen
+                        _genType isRaw name 
+                        (map (_infOrNan . foo) [start, start + step .. end])
+                        sep limits lineLen
 
-genTableExpFloat :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, Eq a, RealFloat a) =>
-                    String -> (a -> v) -> (a, a) -> a -> Int -> HCompile ()
-genTableExpFloat    = _genTableExpFloat NotRaw
+genTableFooFloat :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, Eq a, RealFloat a) =>
+                    String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
+genTableFooFloat    = _genTableFooFloat NotRaw
 
-genTableExpFloatRaw :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, Eq a, RealFloat a) =>
-                    String -> (a -> v) -> (a, a) -> a -> Int -> HCompile ()
-genTableExpFloatRaw = _genTableExpFloat Raw
+genTableFooFloatRaw :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, Eq a, RealFloat a) =>
+                       String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
+genTableFooFloatRaw = _genTableFooFloat Raw
 
--- genTableBmp ::
--- genTableBmp = 
+-- readBmp :: FilePath -> IO ([PixelRGB8], [Pixel8])
+
+-- genTableBmpIdxd ::
+-- genTableBmpIdxd = 
 
 hCompileEnd :: HCompile ()
 hCompileEnd = do
-    fileName <- ask
+    fileName <- asks filePath
     liftIO $ appendFile fileName $
         "\n#endif // " ++ map _cleanName fileName
 
-runHCompile :: HCompile h -> FilePath -> IO h
+runHCompile :: HCompile h -> HCompileConf -> IO h
 runHCompile = runReaderT
