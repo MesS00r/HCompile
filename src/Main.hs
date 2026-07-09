@@ -6,7 +6,9 @@ import HCompile
 main :: IO ()
 main =
     runHCompile (do
-        hCompileBegin "// ------------- TITLE -------------\n\n"
+        hCompileBegin ("// ------------- TITLE -------------\n\n" ++
+                      "#include <stdint.h>\n" ++
+                      "#include <math.h>\n\n")
 
         send2File "// COMMENT :)\n"
 
@@ -20,9 +22,12 @@ main =
 
         send2File "\n"
 
-        genCType         "static uint8_t name[] = " [1 :: Int, 2, 3, 4, 5] ", " 2
-        genTableExp      "static int16_t name2" (\f -> f - 2) (256 :: Int) 16
-        genTableExpFloat "static float name3" (\f -> sin f) (0 :: Float, 256) 0.1 16
+        genCType         "static const char* name[] = " ["a", "b", "c", "d", "e"] ", " 2
+        genTableExp      "static const char* name2" (\f -> show f) (256 :: Int) 16
+        genTableExpFloat "static const char* name3" (\f -> show (f / 2)) (0 :: Float, 256) 0.1 16
+
+        genTableExpRaw      "static const uint16_t name4" (\f -> show f) (256 :: Int) 16
+        genTableExpFloatRaw "static const float name5" (\f -> show (f / 2)) (0 :: Float, 256) 0.1 16
 
         hCompileEnd
     ) $ "test" </> "file.h"
