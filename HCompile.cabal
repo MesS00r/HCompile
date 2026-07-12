@@ -21,7 +21,7 @@ executable HCompile
                       filepath,
                       JuicyPixels,
                       bytestring,
-                      vector
+                      vector,
 
     hs-source-dirs:   src
 

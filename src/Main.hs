@@ -6,19 +6,28 @@ import HCompile
 main :: IO ()
 main =
     runHCompile (do
-        hCompileBegin ("// ------------- TITLE -------------\n\n" ++
-                      "#include <stdint.h>\n" ++
-                      "#include <math.h>\n\n")
+        delFile
+        
+        fileName <- getFileName
+        send2File (
+                       "#ifndef " ++ map cleanName fileName ++ "\n"   ++
+                       "#define " ++ map cleanName fileName ++ "\n\n" ++
+
+                       "// ------------- TITLE -------------\n\n"     ++
+                       
+                       "#include <stdint.h>\n"                        ++
+                       "#include <math.h>\n\n"
+                    )
 
         send2File "// COMMENT :)\n"
 
-        genDefine    "HELLO" (((10 + 10) * 5) :: Int)
-        genDefine    "HELLO1" "hello\\nhello"
-        genDefineRaw "HELLO2" "HELLO"
+        genConst    "#define" "HELLO" (((10 + 10) * 5) :: Int)
+        genConst    "#define" "HELLO1" "hello\\nhello"
+        genConstRaw "#define" "HELLO2" "HELLO"
 
         send2File "\n"
 
-        genMacro "MACRO(a, b)" "((a) + (b))"
+        genMacro "#define" "MACRO(a, b)" "((a) + (b))"
 
         send2File "\n"
 
@@ -46,9 +55,20 @@ main =
                             (0 :: Float, 256) 
                             0.5 ", " ("{\n\t", "\n};\n") 16
 
-        hCompileEnd
+        let bmpFilePath = ("img" </> "img8x8GIMPIndexed9.bmp")
+
+        genBmpPalette bmpFilePath 
+                      "enum NAME " "COLOR_" 
+                      ", " ("{\n\t", "\n};\n") 1
+
+        genBmpImage   bmpFilePath 
+                      "static const uint32_t name6[] = "
+                      "COLOR_" ", " ("{\n\t", "\n};\n") 16
+
+        send2File ("\n#endif // " ++ map cleanName fileName)
     )
     HCompileConf {
-        filePath = "test" </> "file.h", 
-        defineWidth = 7
+        filePath     = "test" </> "file.h", 
+        constWidth   = 7,
+        paletteWidth = 10
     }

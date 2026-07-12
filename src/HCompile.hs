@@ -1,14 +1,18 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE LambdaCase #-}
 
 module HCompile (
     HCompileConf(..),
     HCompile,
     Val2String(..),
-    hCompileBegin,
+    delFile,
     send2File,
-    genDefine,
-    genDefineRaw,
+    cleanName,
+    getFileName,
+    padName,
+    genConst,
+    genConstRaw,
     genMacro,
     genType,
     genTypeRaw,
@@ -16,7 +20,8 @@ module HCompile (
     genTableFooRaw,
     genTableFooFloat,
     genTableFooFloatRaw,
-    hCompileEnd,
+    genBmpPalette,
+    genBmpImage,
     runHCompile
 ) where
 
@@ -26,38 +31,59 @@ import Data.Char            (toUpper, isAlphaNum)
 import Data.List            (intercalate)
 import Control.Monad        (when)
 
--- import Codec.Picture
--- import Codec.Picture.Types
--- import qualified Data.ByteString as B
--- import qualified Data.Vector.Storable as V
+import Codec.Picture
+import Codec.Picture.Types            
+import qualified Data.ByteString      as B
+import qualified Data.Vector.Storable as V
+import Codec.Picture.Bitmap           (decodeBitmapWithPaletteAndMetadata)
+import Data.Word                      (Word8, Word32)
+import Numeric                        (showHex)
+import Foreign.Storable
+
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+-- * HCOMPILE TYPE
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 data HCompileConf = HCompileConf {
-    defineWidth :: Int,
-    filePath    :: FilePath
+    constWidth   :: Int,
+    paletteWidth :: Int,
+    filePath     :: FilePath
     }
 type HCompile h = ReaderT HCompileConf IO h
 
-_cleanName :: Char -> Char
-_cleanName ch
-    | isAlphaNum ch = toUpper ch
-    | otherwise     = '_'
+-- * HCOMPILE FOOS
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-hCompileBegin :: String -> HCompile ()
-hCompileBegin includes = do
+delFile :: HCompile ()
+delFile = do
     fileName <- asks filePath
 
     liftIO $ doesFileExist fileName >>=
         flip when (removeFile fileName)
 
-    liftIO $ appendFile fileName $
-        "#ifndef " ++ map _cleanName fileName ++ "\n" ++
-        "#define " ++ map _cleanName fileName ++ "\n\n" ++
-        includes
-
 send2File :: String -> HCompile ()
 send2File str = do
     fileName <- asks filePath
+
     liftIO $ appendFile fileName str
+
+cleanName :: Char -> Char
+cleanName ch
+    | isAlphaNum ch = toUpper ch
+    | otherwise     = '_'
+
+getFileName :: HCompile String
+getFileName = asks filePath
+
+padName :: Int -> String -> String 
+padName spaces name
+    | spaceNeeded > 0 = name ++ replicate spaceNeeded ' '
+    | otherwise       = name ++ " "
+    where
+        spaceNeeded = spaces - length name
+
+-- * RAW TYPE & VAL2STRING CLASS
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 data IsRaw = Raw | NotRaw
 
@@ -81,36 +107,12 @@ instance Val2String Bool where
     _toString bool = if bool then "1" else "0"
     _toRaw bool    = if bool then "1" else "0"
 
+-- * SYS FOOS
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
 _rawOrNot :: Val2String v => IsRaw -> (v -> String)
 _rawOrNot NotRaw = _toString 
 _rawOrNot Raw    = _toRaw
-
-_padName :: String -> Int -> String
-_padName name spaces
-    | spaceNeeded > 0 = name ++ replicate spaceNeeded ' '
-    | otherwise       = name ++ " "
-    where
-        spaceNeeded = spaces - length name
-
-_genDefine :: Val2String v => IsRaw -> String -> v -> HCompile ()
-_genDefine isRaw name val = do
-    fileName <- asks filePath
-    dWidth   <- asks defineWidth
-    liftIO $ appendFile fileName $
-        "#define " ++ _padName name dWidth ++ " " ++
-        _rawOrNot isRaw val ++ "\n"
-
-genDefine :: Val2String v => String -> v -> HCompile ()
-genDefine    = _genDefine NotRaw
-
-genDefineRaw :: Val2String v => String -> v -> HCompile ()
-genDefineRaw = _genDefine Raw
-
-genMacro :: String -> String -> HCompile ()
-genMacro name body = do
-    fileName <- asks filePath
-    liftIO $ appendFile fileName $
-        "#define " ++ name ++ " " ++ body ++ "\n"
 
 _myChunksOf :: Int -> [a] -> [[a]]
 _myChunksOf _ [] = []
@@ -125,15 +127,44 @@ _padList isRaw list
         maxLen  = maximum (map length listStr)
         pad str = str ++ replicate (maxLen - length str) ' '
 
+-- * GEN MACRO CONST
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+_genConst :: Val2String v => IsRaw -> String -> String -> v -> HCompile ()
+_genConst isRaw macro name val = do
+    fileName <- asks filePath
+    sWidth   <- asks constWidth
+
+    liftIO $ appendFile fileName $
+        macro ++ " " ++ padName sWidth name ++ " " ++
+        _rawOrNot isRaw val ++ "\n"
+
+genConst :: Val2String v => String -> String -> v -> HCompile ()
+genConst    = _genConst NotRaw
+
+genConstRaw :: Val2String v => String -> String -> v -> HCompile ()
+genConstRaw = _genConst Raw
+
+genMacro :: String -> String -> String -> HCompile ()
+genMacro macro name body = do
+    fileName <- asks filePath
+
+    liftIO $ appendFile fileName $
+        macro ++ " " ++ name ++ " " ++ body ++ "\n"
+
+-- * GEN TYPE
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
 _genType :: Val2String v => IsRaw -> String -> [v] -> String -> (String, String) -> Int -> HCompile ()
 _genType isRaw name fields sep (startStr, endStr) lineLen = do
     fileName <- asks filePath
+
     liftIO $ appendFile fileName $
         name ++ startStr ++ 
             intercalate (sep ++ "\n\t")
-            (map (intercalate sep)
-            (_myChunksOf lineLen
-            (_padList isRaw fields)))
+                        (map (intercalate sep)
+                        (_myChunksOf lineLen
+                        (_padList isRaw fields)))
         ++ endStr
 
 genType :: Val2String v => String -> [v] -> String -> (String, String) -> Int -> HCompile ()
@@ -141,6 +172,9 @@ genType    = _genType NotRaw
 
 genTypeRaw :: Val2String v => String -> [v] -> String -> (String, String) -> Int -> HCompile ()
 genTypeRaw = _genType Raw
+
+-- * GEN TABLE
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 _genTableFoo :: (Val2String v, Enum a, Num a) => 
                 IsRaw -> String -> (a -> v) -> a -> String -> (String, String) -> Int -> HCompile ()
@@ -154,6 +188,9 @@ genTableFoo    = _genTableFoo NotRaw
 genTableFooRaw :: (Val2String v, Enum a, Num a) =>
                   String -> (a -> v) -> a -> String -> (String, String) -> Int -> HCompile ()
 genTableFooRaw = _genTableFoo Raw
+
+-- * CHECK FLOAT CLASS
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 class CheckFloat f where
     _infOrNan :: f -> f
@@ -170,6 +207,9 @@ instance CheckFloat String where
         | str == "Infinity"  = error "expression returned Infinite"
         | str == "-Infinity" = error "expression returned Infinite"
         | otherwise          = str
+
+-- * GEN FLOAT TABLE
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 _genTableFooFloat :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, Eq a, RealFloat a) =>
                      IsRaw -> String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
@@ -190,16 +230,66 @@ genTableFooFloatRaw :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, 
                        String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
 genTableFooFloatRaw = _genTableFooFloat Raw
 
--- readBmp :: FilePath -> IO ([PixelRGB8], [Pixel8])
+-- * GEN TABLE BY BMP INDEXED
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
--- genTableBmpIdxd ::
--- genTableBmpIdxd = 
+data Color24 = Color24 !Word8 !Word8 !Word8
 
-hCompileEnd :: HCompile ()
-hCompileEnd = do
-    fileName <- asks filePath
-    liftIO $ appendFile fileName $
-        "\n#endif // " ++ map _cleanName fileName
+instance Storable Color24 where
+    sizeOf _    = 3
+    alignment _ = 1
+    peek ptr    = do
+        b <- peekByteOff ptr 0
+        g <- peekByteOff ptr 1
+        r <- peekByteOff ptr 2
+        return (Color24 b g r)
+    poke _ _ = return ()
+
+instance Show Color24 where
+    show (Color24 b g r) = "0x" ++ pad (showHex colorNum "")
+      where
+        colorNum = (fromIntegral r * 65536) + (fromIntegral g * 256) + fromIntegral b :: Word32
+        pad s    = replicate (6 - length s) '0' ++ s
+
+_bmpErr :: String -> HCompile ()
+_bmpErr err = error $ "Failed to read file: " ++ err
+
+_bmpPalette :: Image PixelRGB8 -> String -> String -> String -> (String, String) -> Int -> HCompile ()
+_bmpPalette palette name field sep limits lineLen = do
+    pWidth <- asks paletteWidth
+    
+    _genType Raw name 
+                 (map (\(i, f) -> padName pWidth (field ++ show i) ++ " = " ++ show f)
+                 (zip [0 :: Int ..] (V.toList (V.unsafeCast (imageData palette) :: V.Vector Color24))))
+                 sep limits lineLen
+
+_bmpImage :: Image Pixel8 -> String -> String -> String -> (String, String) -> Int -> HCompile ()
+_bmpImage img name field sep limits lineLen = do
+    _genType Raw name
+                 (map (\f -> field ++ show f) 
+                 (V.toList (imageData img)))
+                 sep limits lineLen
+
+genBmpPalette :: FilePath -> String -> String -> String -> (String, String) -> Int -> HCompile ()
+genBmpPalette path name field sep limits lineLen = do
+    fileData <- liftIO $ B.readFile path
+
+    either _bmpErr (\case {(PalettedRGB8 _ p, _)                                    -> 
+                   _bmpPalette (palettedAsImage p) name field sep limits lineLen; _ -> 
+                   error "This BMP does not contain an 8 bit palette"})
+                   (decodeBitmapWithPaletteAndMetadata fileData)
+
+genBmpImage :: FilePath -> String -> String -> String -> (String, String) -> Int -> HCompile ()
+genBmpImage path name field sep limits lineLen = do
+    fileData <- liftIO $ B.readFile path
+
+    either _bmpErr (\case {(PalettedRGB8 i _, _)                -> 
+                   _bmpImage i name field sep limits lineLen; _ -> 
+                   error "This BMP is not a valid 8 bit image"})
+                   (decodeBitmapWithPaletteAndMetadata fileData)
+
+-- * RUN HCOMPILE
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 runHCompile :: HCompile h -> HCompileConf -> IO h
 runHCompile = runReaderT
