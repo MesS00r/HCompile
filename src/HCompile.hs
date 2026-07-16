@@ -20,13 +20,17 @@ module HCompile (
     genTableFooRaw,
     genTableFooFloat,
     genTableFooFloatRaw,
+    getBmpWidth,
+    getBmpHeight,
+    getBmpPixelsNum,
+    getBmpSizeByte,
     genBmpPalette,
     genBmpImage,
     runHCompile
 ) where
 
 import Control.Monad.Reader
-import System.Directory     (removeFile, doesFileExist)
+import System.Directory     (removeFile, doesFileExist, getFileSize)
 import Data.Char            (toUpper, isAlphaNum)
 import Data.List            (intercalate)
 import Control.Monad        (when)
@@ -177,16 +181,16 @@ genTypeRaw = _genType Raw
 -- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 _genTableFoo :: (Val2String v, Enum a, Num a) => 
-                IsRaw -> String -> (a -> v) -> a -> String -> (String, String) -> Int -> HCompile ()
-_genTableFoo isRaw name foo size sep limits lineLen =
-    _genType isRaw name (map foo [0..size]) sep limits lineLen
+                IsRaw -> String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
+_genTableFoo isRaw name foo (start, end) step sep limits lineLen =
+    _genType isRaw name (map foo [start, start + step .. end]) sep limits lineLen
 
 genTableFoo :: (Val2String v, Enum a, Num a) => 
-               String -> (a -> v) -> a -> String -> (String, String) -> Int -> HCompile ()
+               String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
 genTableFoo    = _genTableFoo NotRaw
 
 genTableFooRaw :: (Val2String v, Enum a, Num a) =>
-                  String -> (a -> v) -> a -> String -> (String, String) -> Int -> HCompile ()
+                  String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
 genTableFooRaw = _genTableFoo Raw
 
 -- * CHECK FLOAT CLASS
@@ -230,7 +234,7 @@ genTableFooFloatRaw :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, 
                        String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
 genTableFooFloatRaw = _genTableFooFloat Raw
 
--- * GEN TABLE BY BMP INDEXED
+-- * COLOR24 TYPE
 -- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 data Color24 = Color24 !Word8 !Word8 !Word8
@@ -251,8 +255,46 @@ instance Show Color24 where
         colorNum = (fromIntegral r * 65536) + (fromIntegral g * 256) + fromIntegral b :: Word32
         pad s    = replicate (6 - length s) '0' ++ s
 
-_bmpErr :: String -> HCompile ()
-_bmpErr err = error $ "Failed to read file: " ++ err
+-- * GET BMP INFO
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+getBmpWidth :: FilePath -> HCompile Int
+getBmpWidth path = do
+    fileData <- liftIO $ B.readFile path
+
+    either (\err -> error $ "Failed to read file: " ++ err)
+           (\case {(PalettedRGB8 i _, _) ->
+           return (imageWidth i); _      ->
+           error "This BMP does not contain an 8 bit palette"})
+           (decodeBitmapWithPaletteAndMetadata fileData)
+
+getBmpHeight :: FilePath -> HCompile Int
+getBmpHeight path = do
+    fileData <- liftIO $ B.readFile path
+
+    either (\err -> error $ "Failed to read file: " ++ err)
+           (\case {(PalettedRGB8 i _, _) ->
+           return (imageHeight i); _     ->
+           error "This BMP does not contain an 8 bit palette"})
+           (decodeBitmapWithPaletteAndMetadata fileData)
+
+getBmpPixelsNum :: FilePath -> HCompile Int
+getBmpPixelsNum path = do
+    fileData <- liftIO $ B.readFile path
+
+    either (\err -> error $ "Failed to read file: " ++ err)
+           (\case {(PalettedRGB8 i _, _)            ->
+           return (imageWidth i * imageHeight i); _ ->
+           error "This BMP does not contain an 8 bit palette"})
+           (decodeBitmapWithPaletteAndMetadata fileData)
+
+getBmpSizeByte :: FilePath -> HCompile Int
+getBmpSizeByte path = do
+    size <- liftIO $ getFileSize path
+    return (fromIntegral size)
+
+-- * GEN TABLE BY BMP INDEXED
+-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 _bmpPalette :: Image PixelRGB8 -> String -> String -> String -> (String, String) -> Int -> HCompile ()
 _bmpPalette palette name field sep limits lineLen = do
@@ -274,19 +316,21 @@ genBmpPalette :: FilePath -> String -> String -> String -> (String, String) -> I
 genBmpPalette path name field sep limits lineLen = do
     fileData <- liftIO $ B.readFile path
 
-    either _bmpErr (\case {(PalettedRGB8 _ p, _)                                    -> 
-                   _bmpPalette (palettedAsImage p) name field sep limits lineLen; _ -> 
-                   error "This BMP does not contain an 8 bit palette"})
-                   (decodeBitmapWithPaletteAndMetadata fileData)
+    either (\err -> error $ "Failed to read file: " ++ err)
+           (\case {(PalettedRGB8 _ p, _)                                    -> 
+           _bmpPalette (palettedAsImage p) name field sep limits lineLen; _ -> 
+           error "This BMP does not contain an 8 bit palette"})
+           (decodeBitmapWithPaletteAndMetadata fileData)
 
 genBmpImage :: FilePath -> String -> String -> String -> (String, String) -> Int -> HCompile ()
 genBmpImage path name field sep limits lineLen = do
     fileData <- liftIO $ B.readFile path
 
-    either _bmpErr (\case {(PalettedRGB8 i _, _)                -> 
-                   _bmpImage i name field sep limits lineLen; _ -> 
-                   error "This BMP is not a valid 8 bit image"})
-                   (decodeBitmapWithPaletteAndMetadata fileData)
+    either (\err -> error $ "Failed to read file: " ++ err)
+           (\case {(PalettedRGB8 i _, _)                -> 
+           _bmpImage i name field sep limits lineLen; _ -> 
+           error "This BMP is not a valid 8 bit image"})
+           (decodeBitmapWithPaletteAndMetadata fileData)
 
 -- * RUN HCOMPILE
 -- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 

@@ -1,0 +1,6 @@
+packages: .
+
+optional-packages: examples/*
+
+package *
+  extra-prog-path: .
