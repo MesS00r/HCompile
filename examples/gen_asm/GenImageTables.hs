@@ -40,6 +40,7 @@ main =
                       ("\n", "")
                       ("", "\n")
                       1
+        send2File "\n"
 
         genBmpImage   img1Path
                       "img_rgby_8x8: dd\n\t"
@@ -76,6 +77,7 @@ main =
                       ("\n", "")
                       ("", "\n")
                       1
+        send2File "\n"
 
         genBmpImage   img2Path
                       "mushroom: db\n\t"
