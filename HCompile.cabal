@@ -28,7 +28,7 @@ library
 
     default-language:   Haskell2010
 
-executable owo
+executable owo4C
     import:             warnings
     main-is:            Owo.hs
     hs-source-dirs:     examples/gen_c
@@ -36,7 +36,7 @@ executable owo
     build-depends:      base ^>=4.20.2.0, filepath, HCompile
     default-language:   Haskell2010
 
-executable genImageTables
+executable genImageTables4C
     import:             warnings
     main-is:            GenImageTables.hs
     hs-source-dirs:     examples/gen_c
@@ -44,10 +44,34 @@ executable genImageTables
     build-depends:      base ^>=4.20.2.0, filepath, HCompile
     default-language:   Haskell2010
 
-executable genMathTables
+executable genMathTables4C
     import:             warnings
     main-is:            GenMathTables.hs
     hs-source-dirs:     examples/gen_c
+
+    build-depends:      base ^>=4.20.2.0, filepath, random, HCompile
+    default-language:   Haskell2010
+
+executable owo4Asm
+    import:             warnings
+    main-is:            Owo.hs
+    hs-source-dirs:     examples/gen_asm
+
+    build-depends:      base ^>=4.20.2.0, filepath, HCompile
+    default-language:   Haskell2010
+
+executable genImageTables4Asm
+    import:             warnings
+    main-is:            GenImageTables.hs
+    hs-source-dirs:     examples/gen_asm
+
+    build-depends:      base ^>=4.20.2.0, filepath, HCompile
+    default-language:   Haskell2010
+
+executable genMathTables4Asm
+    import:             warnings
+    main-is:            GenMathTables.hs
+    hs-source-dirs:     examples/gen_asm
 
     build-depends:      base ^>=4.20.2.0, filepath, random, HCompile
     default-language:   Haskell2010

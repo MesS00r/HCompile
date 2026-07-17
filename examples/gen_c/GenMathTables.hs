@@ -36,38 +36,54 @@ main =
             "#include <stdint.h>\n\n"
             )
 
-        genConst    "#define" "PI"  (3.14 :: Float)
-        genConstRaw "#define" "TAU" "(PI * 2)"
-        genConst    "#define" "E"   (2.71 :: Float)
+        genConst    "#define " "PI "  (3.14 :: Float)
+        genConstRaw "#define " "TAU " "(PI * 2)"
+        genConst    "#define " "E "   (2.71 :: Float)
         send2File "\n"
 
         randomNum <- randomRIO (1, 256 :: Int)
-        genConst "#define" "RANDOM_NUM" randomNum
+        genConst "#define " "RANDOM_NUM " randomNum
+        send2File "\n"
 
-        genMacro "#define" "MAX(x, y)" "((x) > (y) ? (x) : (y))"
-        genMacro "#define" "MIN(x, y)" "((x) < (y) ? (y) : (x))\n"
+        genMacro "#define " "MAX(x, y) " "((x) > (y) ? (x) : (y))"
+        genMacro "#define " "MIN(x, y) " "((x) < (y) ? (y) : (x))\n"
 
-        genMacro "#define" "SQUARE(x)" "((x) * (x))"
-        genMacro "#define" "ABS(x)"    "((x) < 0 ? -(x) : (x))\n"
+        genMacro "#define " "SQUARE(x) " "((x) * (x))"
+        genMacro "#define " "ABS(x) "    "((x) < 0 ? -(x) : (x))\n"
 
         genTableFoo         "static const uint16_t numsx2[] = "
-                            (\f -> f * 2) (0, 256 :: Int) 1
-                            ", " ("{\n\t", "\n};\n") 16
+                            (\f -> f * 2)
+                            (0, 256 :: Int) 1
+                            (", \n\t", ", ")
+                            ("{\n\t", "\n};\n")
+                            16
         send2File "\n"
 
         genTableFooFloat    "static const float sin_table[] = "
-                            (\f -> sin f) (0, 256 :: Float) 1
-                            ", " ("{\n\t", "\n};\n") 8
+                            (\f -> sin f)
+                            (0, 256 :: Float)
+                            1
+                            (", \n\t", ", ")
+                            ("{\n\t", "\n};\n")
+                            8
         send2File "\n"
 
         genTableFooRaw      "static const uint16_t random_nums[] = "
-                            (\f -> "RANDOM_NUM * " ++ show f) (1, 256 :: Int) 1
-                            ", " ("{\n\t", "\n};\n") 8
+                            (\f -> "RANDOM_NUM * " ++ show f)
+                            (1, 256 :: Int)
+                            1
+                            (", \n\t", ", ")
+                            ("{\n\t", "\n};\n")
+                            8
         send2File "\n"
 
         genTableFooFloatRaw "static const float pi_nums[] = "
-                            (\f -> "PI * " ++ show f) (1, 256 :: Float) 1
-                            ", " ("{\n\t", "\n};\n") 8
+                            (\f -> "PI * " ++ show f)
+                            (1, 256 :: Float)
+                            1
+                            (", \n\t", ", ")
+                            ("{\n\t", "\n};\n")
+                            8
 
         send2File ("\n#endif // " ++ map cleanName fileName)
 

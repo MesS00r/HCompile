@@ -11,20 +11,20 @@
 // * IMAGE 1 (IMG_RGBY_8X8)
 // * -------------------------------------------------------------------------------
 
-#define IMG_RGBY_8x8_WIDTH        16
-#define IMG_RGBY_8x8_HEIGHT       16
-#define IMG_RGBY_8x8_PIXELS       256
-#define IMG_RGBY_8x8_BYTES        290
+#define IMG_RGBY_8x8_WIDTH       16
+#define IMG_RGBY_8x8_HEIGHT      16
+#define IMG_RGBY_8x8_PIXELS      256
+#define IMG_RGBY_8x8_BYTES       290
 
 enum IMG_RGBY_8x8_PALETTE {
-	COLOR_0    = 0x000000, 
-	COLOR_1    = 0xff0000, 
-	COLOR_2    = 0x0000ff, 
-	COLOR_3    = 0x00ff00, 
-	COLOR_4    = 0x00ffff, 
-	COLOR_5    = 0xffffff
+	COLOR_0 = 0x000000, 
+	COLOR_1 = 0xff0000, 
+	COLOR_2 = 0x0000ff, 
+	COLOR_3 = 0x00ff00, 
+	COLOR_4 = 0x00ffff, 
+	COLOR_5 = 0xffffff
 };
-static const uint32_t imgRgby8x8[] = {
+static const uint32_t img_rgby_8x8[] = {
 	COLOR_0, COLOR_5, COLOR_0, COLOR_5, COLOR_0, COLOR_5, COLOR_0, COLOR_5, COLOR_1, COLOR_4, COLOR_1, COLOR_4, COLOR_1, COLOR_4, COLOR_1, COLOR_4, 
 	COLOR_5, COLOR_0, COLOR_5, COLOR_0, COLOR_5, COLOR_0, COLOR_5, COLOR_0, COLOR_4, COLOR_1, COLOR_4, COLOR_1, COLOR_4, COLOR_1, COLOR_4, COLOR_1, 
 	COLOR_0, COLOR_5, COLOR_0, COLOR_5, COLOR_0, COLOR_5, COLOR_0, COLOR_5, COLOR_1, COLOR_4, COLOR_1, COLOR_4, COLOR_1, COLOR_4, COLOR_1, COLOR_4, 
@@ -47,17 +47,17 @@ static const uint32_t imgRgby8x8[] = {
 // * IMAGE 2 (MUSHROOM)
 // * -------------------------------------------------------------------------------
 
-#define MUSHROOM_WIDTH            16
-#define MUSHROOM_HEIGHT           16
-#define MUSHROOM_PIXELS           256
-#define MUSHROOM_BYTES            286
+#define MUSHROOM_WIDTH           16
+#define MUSHROOM_HEIGHT          16
+#define MUSHROOM_PIXELS          256
+#define MUSHROOM_BYTES           286
 
 enum MUSHROOM_PALETTE {
-	COLOR1_0   = 1, 
-	COLOR1_1   = 2, 
-	COLOR1_2   = 3, 
-	COLOR1_3   = 4, 
-	COLOR1_4   = 5
+	COLOR1_0 = 1, 
+	COLOR1_1 = 2, 
+	COLOR1_2 = 3, 
+	COLOR1_3 = 4, 
+	COLOR1_4 = 5
 };
 static const uint8_t mushroom[] = {
 	COLOR1_0, COLOR1_0, COLOR1_0, COLOR1_0, COLOR1_0, COLOR1_0, COLOR1_0, COLOR1_0, COLOR1_0, COLOR1_0, COLOR1_0, COLOR1_0, COLOR1_3, COLOR1_3, COLOR1_3, COLOR1_3, 

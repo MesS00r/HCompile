@@ -1,27 +1,22 @@
-#ifndef TEST_GEN_C_OWO_H
-#define TEST_GEN_C_OWO_H
+; ***************** OWO *****************
 
-// ***************** OWO *****************
+; Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo
+; Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo
+; Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo
+; Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo
+; Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo
 
-// Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo
-// Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo
-// Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo
-// Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo
-// Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo Owo
+OWO_WIDTH equ            32
+OWO_HEIGHT equ           32
+OWO_PIXELS equ           1024
+OWO_BYTES equ            662
 
-#include <stdint.h>
+; OWO_PALETTE
+COLOR_0 equ 0x000000
+COLOR_1 equ 0xff00ff
+COLOR_2 equ 0xffffff
 
-#define OWO_WIDTH                32
-#define OWO_HEIGHT               32
-#define OWO_PIXELS               1024
-#define OWO_BYTES                662
-
-enum OWO_PALETTE {
-	COLOR_0 = 0x000000, 
-	COLOR_1 = 0xff00ff, 
-	COLOR_2 = 0xffffff
-};
-static const uint32_t owo[] = {
+owo: db
 	COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, 
 	COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, 
 	COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, 
@@ -86,6 +81,3 @@ static const uint32_t owo[] = {
 	COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, 
 	COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, 
 	COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2, COLOR_2
-};
-
-#endif // TEST_GEN_C_OWO_H

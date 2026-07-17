@@ -34,19 +34,25 @@ main =
         img1Pixels <- getBmpPixelsNum img1Path
         img1Bytes  <- getBmpSizeByte  img1Path
 
-        genConst "#define" "IMG_RGBY_8x8_WIDTH"  img1Width
-        genConst "#define" "IMG_RGBY_8x8_HEIGHT" img1Height
-        genConst "#define" "IMG_RGBY_8x8_PIXELS" img1Pixels
-        genConst "#define" "IMG_RGBY_8x8_BYTES"  img1Bytes
+        genConst "#define " "IMG_RGBY_8x8_WIDTH "  img1Width
+        genConst "#define " "IMG_RGBY_8x8_HEIGHT " img1Height
+        genConst "#define " "IMG_RGBY_8x8_PIXELS " img1Pixels
+        genConst "#define " "IMG_RGBY_8x8_BYTES "  img1Bytes
         send2File "\n"
 
         genBmpPalette img1Path
                       "enum IMG_RGBY_8x8_PALETTE "
-                      "COLOR_" ", " ("{\n\t", "\n};\n") 1
+                      ("COLOR_", " = ")
+                      (", \n\t", ", ")
+                      ("{\n\t", "\n};\n")
+                      1
 
         genBmpImage   img1Path
-                      "static const uint32_t imgRgby8x8[] = "
-                      "COLOR_" ", " ("{\n\t", "\n};\n") 16
+                      "static const uint32_t img_rgby_8x8[] = "
+                      "COLOR_"
+                      (", \n\t", ", ")
+                      ("{\n\t", "\n};\n")
+                      16
 
 -- * IMAGE 2
 -- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
@@ -62,21 +68,26 @@ main =
         img2Pixels <- getBmpPixelsNum img2Path
         img2Bytes  <- getBmpSizeByte  img2Path
 
-        genConst "#define" "MUSHROOM_WIDTH"  img2Width
-        genConst "#define" "MUSHROOM_HEIGHT" img2Height
-        genConst "#define" "MUSHROOM_PIXELS" img2Pixels
-        genConst "#define" "MUSHROOM_BYTES"  img2Bytes
+        genConst "#define " "MUSHROOM_WIDTH "  img2Width
+        genConst "#define " "MUSHROOM_HEIGHT " img2Height
+        genConst "#define " "MUSHROOM_PIXELS " img2Pixels
+        genConst "#define " "MUSHROOM_BYTES "  img2Bytes
         send2File "\n"
 
         let customPalette = [1, 2, 3, 4, 5]
         genTypeRaw    "enum MUSHROOM_PALETTE "
-                      (map (\(i, f)-> padName 10 ("COLOR1_" ++ show i) ++ " = " ++ show f)
+                      (map (\(i, f)-> padName 10 ("COLOR1_" ++ show i ++ " = ") ++ show f)
                       (zip[0 :: Int ..] customPalette))
-                      ", " ("{\n\t", "\n};\n") 1
+                      (", \n\t", ", ")
+                      ("{\n\t", "\n};\n")
+                      1
 
         genBmpImage   img2Path
                       "static const uint8_t mushroom[] = "
-                      "COLOR1_" ", " ("{\n\t", "\n};\n") 16
+                      "COLOR1_"
+                      (", \n\t", ", ")
+                      ("{\n\t", "\n};\n")
+                      16
 
         send2File ("\n#endif // " ++ map cleanName fileName)
 

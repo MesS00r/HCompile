@@ -6,6 +6,7 @@ module HCompile (
     HCompileConf(..),
     HCompile,
     Val2String(..),
+    Color24,
     delFile,
     send2File,
     cleanName,
@@ -24,6 +25,8 @@ module HCompile (
     getBmpHeight,
     getBmpPixelsNum,
     getBmpSizeByte,
+    getBmpPalette,
+    getBmpImage,
     genBmpPalette,
     genBmpImage,
     runHCompile
@@ -82,7 +85,7 @@ getFileName = asks filePath
 padName :: Int -> String -> String 
 padName spaces name
     | spaceNeeded > 0 = name ++ replicate spaceNeeded ' '
-    | otherwise       = name ++ " "
+    | otherwise       = name
     where
         spaceNeeded = spaces - length name
 
@@ -140,7 +143,7 @@ _genConst isRaw macro name val = do
     sWidth   <- asks constWidth
 
     liftIO $ appendFile fileName $
-        macro ++ " " ++ padName sWidth name ++ " " ++
+        macro ++ padName sWidth name ++
         _rawOrNot isRaw val ++ "\n"
 
 genConst :: Val2String v => String -> String -> v -> HCompile ()
@@ -154,43 +157,43 @@ genMacro macro name body = do
     fileName <- asks filePath
 
     liftIO $ appendFile fileName $
-        macro ++ " " ++ name ++ " " ++ body ++ "\n"
+        macro ++ name ++ body ++ "\n"
 
 -- * GEN TYPE
 -- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-_genType :: Val2String v => IsRaw -> String -> [v] -> String -> (String, String) -> Int -> HCompile ()
-_genType isRaw name fields sep (startStr, endStr) lineLen = do
+_genType :: Val2String v => IsRaw -> String -> [v] -> (String, String) -> (String, String) -> Int -> HCompile ()
+_genType isRaw name fields (sepLine, sepElem) (startStr, endStr) lineLen = do
     fileName <- asks filePath
 
     liftIO $ appendFile fileName $
         name ++ startStr ++ 
-            intercalate (sep ++ "\n\t")
-                        (map (intercalate sep)
+            intercalate sepLine
+                        (map (intercalate sepElem)
                         (_myChunksOf lineLen
                         (_padList isRaw fields)))
         ++ endStr
 
-genType :: Val2String v => String -> [v] -> String -> (String, String) -> Int -> HCompile ()
+genType :: Val2String v => String -> [v] -> (String, String) -> (String, String) -> Int -> HCompile ()
 genType    = _genType NotRaw
 
-genTypeRaw :: Val2String v => String -> [v] -> String -> (String, String) -> Int -> HCompile ()
+genTypeRaw :: Val2String v => String -> [v] -> (String, String) -> (String, String) -> Int -> HCompile ()
 genTypeRaw = _genType Raw
 
 -- * GEN TABLE
 -- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 _genTableFoo :: (Val2String v, Enum a, Num a) => 
-                IsRaw -> String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
+                IsRaw -> String -> (a -> v) -> (a, a) -> a -> (String, String) -> (String, String) -> Int -> HCompile ()
 _genTableFoo isRaw name foo (start, end) step sep limits lineLen =
     _genType isRaw name (map foo [start, start + step .. end]) sep limits lineLen
 
 genTableFoo :: (Val2String v, Enum a, Num a) => 
-               String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
+               String -> (a -> v) -> (a, a) -> a -> (String, String) -> (String, String) -> Int -> HCompile ()
 genTableFoo    = _genTableFoo NotRaw
 
 genTableFooRaw :: (Val2String v, Enum a, Num a) =>
-                  String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
+                  String -> (a -> v) -> (a, a) -> a -> (String, String) -> (String, String) -> Int -> HCompile ()
 genTableFooRaw = _genTableFoo Raw
 
 -- * CHECK FLOAT CLASS
@@ -216,7 +219,7 @@ instance CheckFloat String where
 -- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 _genTableFooFloat :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, Eq a, RealFloat a) =>
-                     IsRaw -> String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
+                     IsRaw -> String -> (a -> v) -> (a, a) -> a -> (String, String) -> (String, String) -> Int -> HCompile ()
 _genTableFooFloat isRaw name foo (start, end) step sep limits lineLen 
     | isInfinite step = error "Step should not be Infinity"
     | isNaN step      = error "Step should not be NaN"
@@ -227,11 +230,11 @@ _genTableFooFloat isRaw name foo (start, end) step sep limits lineLen
                         sep limits lineLen
 
 genTableFooFloat :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, Eq a, RealFloat a) =>
-                    String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
+                    String -> (a -> v) -> (a, a) -> a -> (String, String) -> (String, String) -> Int -> HCompile ()
 genTableFooFloat    = _genTableFooFloat NotRaw
 
 genTableFooFloatRaw :: (Val2String v, CheckFloat v, Eq v, Enum a, Fractional a, Eq a, RealFloat a) =>
-                       String -> (a -> v) -> (a, a) -> a -> String -> (String, String) -> Int -> HCompile ()
+                       String -> (a -> v) -> (a, a) -> a -> (String, String) -> (String, String) -> Int -> HCompile ()
 genTableFooFloatRaw = _genTableFooFloat Raw
 
 -- * COLOR24 TYPE
@@ -293,26 +296,46 @@ getBmpSizeByte path = do
     size <- liftIO $ getFileSize path
     return (fromIntegral size)
 
+getBmpPalette :: FilePath -> HCompile [Color24]
+getBmpPalette path = do
+    fileData <- liftIO $ B.readFile path
+
+    either (\err -> error $ "Failed to read file: " ++ err)
+           (\case {(PalettedRGB8 _ p, _)                                                           -> 
+           return (V.toList (V.unsafeCast (imageData (palettedAsImage p)) :: V.Vector Color24)); _ -> 
+           error "This BMP does not contain an 8 bit palette"})
+           (decodeBitmapWithPaletteAndMetadata fileData)
+
+getBmpImage :: FilePath -> HCompile [Word8]
+getBmpImage path = do
+    fileData <- liftIO $ B.readFile path
+
+    either (\err -> error $ "Failed to read file: " ++ err)
+           (\case {(PalettedRGB8 i _, _)      -> 
+           return (V.toList (imageData i)); _ -> 
+           error "This BMP is not a valid 8 bit image"})
+           (decodeBitmapWithPaletteAndMetadata fileData)
+
 -- * GEN TABLE BY BMP INDEXED
 -- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-_bmpPalette :: Image PixelRGB8 -> String -> String -> String -> (String, String) -> Int -> HCompile ()
-_bmpPalette palette name field sep limits lineLen = do
+_bmpPalette :: Image PixelRGB8 -> String -> (String, String) -> (String, String) -> (String, String) -> Int -> HCompile ()
+_bmpPalette palette name (field, fSep) sep limits lineLen = do
     pWidth <- asks paletteWidth
     
     _genType Raw name 
-                 (map (\(i, f) -> padName pWidth (field ++ show i) ++ " = " ++ show f)
+                 (map (\(i, f) -> padName pWidth (field ++ show i ++ fSep) ++ show f)
                  (zip [0 :: Int ..] (V.toList (V.unsafeCast (imageData palette) :: V.Vector Color24))))
                  sep limits lineLen
 
-_bmpImage :: Image Pixel8 -> String -> String -> String -> (String, String) -> Int -> HCompile ()
+_bmpImage :: Image Pixel8 -> String -> String -> (String, String) -> (String, String) -> Int -> HCompile ()
 _bmpImage img name field sep limits lineLen = do
     _genType Raw name
                  (map (\f -> field ++ show f) 
                  (V.toList (imageData img)))
                  sep limits lineLen
 
-genBmpPalette :: FilePath -> String -> String -> String -> (String, String) -> Int -> HCompile ()
+genBmpPalette :: FilePath -> String -> (String, String) -> (String, String) -> (String, String) -> Int -> HCompile ()
 genBmpPalette path name field sep limits lineLen = do
     fileData <- liftIO $ B.readFile path
 
@@ -322,7 +345,7 @@ genBmpPalette path name field sep limits lineLen = do
            error "This BMP does not contain an 8 bit palette"})
            (decodeBitmapWithPaletteAndMetadata fileData)
 
-genBmpImage :: FilePath -> String -> String -> String -> (String, String) -> Int -> HCompile ()
+genBmpImage :: FilePath -> String -> String -> (String, String) -> (String, String) -> Int -> HCompile ()
 genBmpImage path name field sep limits lineLen = do
     fileData <- liftIO $ B.readFile path
 

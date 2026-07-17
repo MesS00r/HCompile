@@ -30,19 +30,25 @@ main =
         owoPixels <- getBmpPixelsNum owoPath
         owoBytes  <- getBmpSizeByte  owoPath
 
-        genConst "#define" "OWO_WIDTH"  owoWidth
-        genConst "#define" "OWO_HEIGHT" owoHeight
-        genConst "#define" "OWO_PIXELS" owoPixels
-        genConst "#define" "OWO_BYTES"  owoBytes
+        genConst "#define " "OWO_WIDTH "  owoWidth
+        genConst "#define " "OWO_HEIGHT " owoHeight
+        genConst "#define " "OWO_PIXELS " owoPixels
+        genConst "#define " "OWO_BYTES "  owoBytes
         send2File "\n"
 
         genBmpPalette owoPath
                       "enum OWO_PALETTE "
-                      "COLOR_" ", " ("{\n\t", "\n};\n") 1
+                      ("COLOR_", " = ")
+                      (", \n\t", ", ")
+                      ("{\n\t", "\n};\n")
+                      1
 
         genBmpImage   owoPath
                       "static const uint32_t owo[] = "
-                      "COLOR_" ", " ("{\n\t", "\n};\n") 16
+                      "COLOR_"
+                      (", \n\t", ", ")
+                      ("{\n\t", "\n};\n")
+                      16
 
         send2File ("\n#endif // " ++ map cleanName fileName)
 

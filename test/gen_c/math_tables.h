@@ -22,11 +22,12 @@
 
 #include <stdint.h>
 
-#define PI                        3.14
-#define TAU                       (PI * 2)
-#define E                         2.71
+#define PI                       3.14
+#define TAU                      (PI * 2)
+#define E                        2.71
 
-#define RANDOM_NUM                195
+#define RANDOM_NUM               219
+
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (y) : (x))
 
