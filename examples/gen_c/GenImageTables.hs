@@ -45,6 +45,7 @@ main =
                       ("COLOR_", " = ")
                       (", \n\t", ", ")
                       ("{\n\t", "\n};\n")
+                      10
                       1
 
         genBmpImage   img1Path
@@ -93,6 +94,5 @@ main =
 
     ) HCompileConf {
         filePath     = "test" </> "gen_c" </> "image_tables.h",
-        constWidth   = 25,
-        paletteWidth = 10
+        constWidth   = 25
     }

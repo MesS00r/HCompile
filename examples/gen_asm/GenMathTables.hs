@@ -59,6 +59,5 @@ main =
 
     ) HCompileConf {
         filePath     = "test" </> "gen_asm" </> "math_tables.asm",
-        constWidth   = 25,
-        paletteWidth = 10
+        constWidth   = 25
     }

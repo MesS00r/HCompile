@@ -53,7 +53,6 @@ import Foreign.Storable
 
 data HCompileConf = HCompileConf {
     constWidth   :: Int,
-    paletteWidth :: Int,
     filePath     :: FilePath
     }
 type HCompile h = ReaderT HCompileConf IO h
@@ -319,12 +318,12 @@ getBmpImage path = do
 -- * GEN TABLE BY BMP INDEXED
 -- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-_bmpPalette :: Image PixelRGB8 -> String -> (String, String) -> (String, String) -> (String, String) -> Int -> HCompile ()
-_bmpPalette palette name (field, fSep) sep limits lineLen = do
-    pWidth <- asks paletteWidth
+_bmpPalette :: Image PixelRGB8 -> String -> (String, String) -> (String, String) -> (String, String) -> Int -> Int -> HCompile ()
+_bmpPalette palette name (field, fSep) sep limits pads lineLen = do
+    -- pWidth <- asks paletteWidth
     
     _genType Raw name 
-                 (map (\(i, f) -> padName pWidth (field ++ show i ++ fSep) ++ show f)
+                 (map (\(i, f) -> padName pads (field ++ show i ++ fSep) ++ show f)
                  (zip [0 :: Int ..] (V.toList (V.unsafeCast (imageData palette) :: V.Vector Color24))))
                  sep limits lineLen
 
@@ -335,13 +334,13 @@ _bmpImage img name field sep limits lineLen = do
                  (V.toList (imageData img)))
                  sep limits lineLen
 
-genBmpPalette :: FilePath -> String -> (String, String) -> (String, String) -> (String, String) -> Int -> HCompile ()
-genBmpPalette path name field sep limits lineLen = do
+genBmpPalette :: FilePath -> String -> (String, String) -> (String, String) -> (String, String) -> Int -> Int -> HCompile ()
+genBmpPalette path name field sep limits pads lineLen = do
     fileData <- liftIO $ B.readFile path
 
     either (\err -> error $ "Failed to read file: " ++ err)
            (\case {(PalettedRGB8 _ p, _)                                    -> 
-           _bmpPalette (palettedAsImage p) name field sep limits lineLen; _ -> 
+           _bmpPalette (palettedAsImage p) name field sep limits pads lineLen; _ -> 
            error "This BMP does not contain an 8 bit palette"})
            (decodeBitmapWithPaletteAndMetadata fileData)
 

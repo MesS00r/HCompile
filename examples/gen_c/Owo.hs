@@ -41,6 +41,7 @@ main =
                       ("COLOR_", " = ")
                       (", \n\t", ", ")
                       ("{\n\t", "\n};\n")
+                      10
                       1
 
         genBmpImage   owoPath
@@ -54,6 +55,5 @@ main =
 
     ) HCompileConf {
         filePath     = "test" </> "gen_c" </> "owo.h",
-        constWidth   = 25,
-        paletteWidth = 10
+        constWidth   = 25
     }

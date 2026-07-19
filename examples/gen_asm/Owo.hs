@@ -36,6 +36,7 @@ main =
                       ("COLOR_", " equ ")
                       ("\n", "")
                       ("", "\n")
+                      10
                       1
 
         send2File "\n"
@@ -49,6 +50,5 @@ main =
 
     ) HCompileConf {
         filePath     = "test" </> "gen_asm" </> "owo.asm",
-        constWidth   = 25,
-        paletteWidth = 0
+        constWidth   = 25
     }

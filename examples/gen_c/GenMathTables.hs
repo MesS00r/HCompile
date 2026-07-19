@@ -89,6 +89,5 @@ main =
 
     ) HCompileConf {
         filePath     = "test" </> "gen_c" </> "math_tables.h",
-        constWidth   = 25,
-        paletteWidth = 10
+        constWidth   = 25
     }

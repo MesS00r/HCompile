@@ -26,7 +26,7 @@
 #define TAU                      (PI * 2)
 #define E                        2.71
 
-#define RANDOM_NUM               219
+#define RANDOM_NUM               22
 
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 #define MIN(x, y) ((x) < (y) ? (y) : (x))
